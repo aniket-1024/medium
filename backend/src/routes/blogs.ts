@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client/edge";
 import { withAccelerate } from "@prisma/extension-accelerate";
 import { Hono } from "hono";
 import { verify } from "hono/jwt";
+import { updateBlogInput, createBlogInput } from "@100xdevs/medium-common";
 
 export const blogRoute = new Hono<{
     Bindings: {
@@ -20,6 +21,7 @@ blogRoute.use('/*', async (c, next) => {
 
     console.log(response.id)
     if(response.id) {
+        //@ts-ignore
         c.set("userId", response.id)
         await next();
     } 
@@ -34,6 +36,13 @@ blogRoute.post('/', async (c) => {
     const prisma = new PrismaClient({
         datasourceUrl: c.env.DATABASE_URL
     },).$extends(withAccelerate());
+    const {success} = createBlogInput.safeParse(body)
+    if(!success) {
+        c.status(411)
+        return c.json({
+            msg: "Wrong input"
+        })
+    }
 
     const blog = await prisma.post.create({
         data:{
@@ -52,7 +61,13 @@ blogRoute.put('/', async(c) => {
     const prisma = new PrismaClient({
         datasourceUrl: c.env.DATABASE_URL
     },).$extends(withAccelerate());
-
+    const {success} = updateBlogInput.safeParse(body)
+    if(!success) {
+        c.status(411)
+        return c.json({
+            msg: "Wrong input"
+        })
+    }
     const blog = await prisma.post.update({
         where:{
             id: body.id
@@ -83,7 +98,6 @@ blogRoute.get('/:id', async(c) => {
     const prisma = new PrismaClient({
         datasourceUrl: c.env.DATABASE_URL
     },).$extends(withAccelerate());
-
     try {
             const blog = await prisma.post.findUnique({
             where:{
